@@ -6,7 +6,7 @@ import {
   updateRequestStatus,
 } from "../controllers/requestController.js";
 import protect from "../middleware/authMiddleware.js";
-import isAdmin from "../middleware/roleMiddleware.js";
+import {isAdmin} from "../middleware/roleMiddleware.js";
 
 const router = express.Router();
 
@@ -15,7 +15,7 @@ router.post("/", protect, createRequest);
 router.get("/my", protect, getMyRequests);
 
 // Admin
-router.get("/", protect, isAdmin, getAllRequests);
-router.put("/:id", protect, isAdmin, updateRequestStatus);
+router.get("/", protect,isAdmin, getAllRequests);
+router.put("/:id", protect,isAdmin, updateRequestStatus);
 
 export default router;

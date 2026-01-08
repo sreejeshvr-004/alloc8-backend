@@ -1,11 +1,28 @@
 import User from "../models/userModel.js";
+import Asset from "../models/assetModel.js";
 
-// @desc    Get all users
+// @desc    Get all users with assigned assets
 // @route   GET /api/users
 export const getUsers = async (req, res) => {
   try {
-    const users = await User.find({ isDeleted: false }).select("-password");
-    res.json(users);
+    const users = await User.find({ isDeleted: false })
+      .select("-password");
+
+    const usersWithAssets = await Promise.all(
+      users.map(async (user) => {
+        const userAssets = await Asset.find({
+          assignedTo: user._id,
+          isDeleted: false,
+        });
+
+        return {
+          ...user.toObject(),
+          assets: userAssets, // attach here
+        };
+      })
+    );
+
+    res.json(usersWithAssets);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -91,7 +108,7 @@ export const deleteUser = async (req, res) => {
     await user.save();
 
     res.json({ message: "User deleted (soft delete)" });
-  } catch (error) { 
+  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
