@@ -6,6 +6,7 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import assetRoutes from "./routes/assetRoutes.js";
 import requestRoutes from "./routes/requestRoutes.js"
+import dashboardRoutes from "./routes/dashboardRoutes.js"
 
 
 dotenv.config();
@@ -22,6 +23,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/assets", assetRoutes);
 app.use("/api/requests", requestRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 
 // Test route
