@@ -29,24 +29,6 @@ const assetSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    history: [
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    action: {
-      type: String,
-      enum: ["assigned", "unassigned"],
-      required: true,
-    },
-    date: {
-      type: Date,
-      default: Date.now,
-    },
-  },
-],
-
   },
   { timestamps: true }
 );

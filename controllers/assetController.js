@@ -1,4 +1,6 @@
 import Asset from "../models/assetModel.js";
+import AssetHistory from "../models/assetHistoryModel.js";
+
 
 // GET /api/assets
 export const getAssets = async (req, res) => {
@@ -72,22 +74,22 @@ export const assignAsset = async (req, res) => {
 
     asset.assignedTo = userId;
     asset.status = "assigned";
-
-    // 🔥 ADD HISTORY
-    asset.history.push({
-      user: userId,
-      action: "assigned",
-    });
-
     await asset.save();
+
+    // ✅ WRITE HISTORY (CORRECT PLACE)
+    await AssetHistory.create({
+      asset: asset._id,
+      action: "assigned",
+      performedBy: req.user._id,
+      assignedTo: userId,
+      notes: "Asset assigned by admin",
+    });
 
     res.json({ message: "Asset assigned successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
-
 // @desc    Unassign asset and added History
 // @route   PUT /api/assets/unassign/:id
 export const unassignAsset = async (req, res) => {
@@ -102,37 +104,22 @@ export const unassignAsset = async (req, res) => {
       return res.status(400).json({ message: "Asset is not assigned" });
     }
 
-    // 🔥 ADD HISTORY BEFORE unassign
-    asset.history.push({
-      user: asset.assignedTo,
-      action: "unassigned",
-    });
+    const previousUser = asset.assignedTo;
 
     asset.assignedTo = null;
     asset.status = "available";
-
     await asset.save();
 
-    res.json({ message: "Asset unassigned successfully" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-// @desc    Get asset history
-// @route   GET /api/assets/:id/history
-export const getAssetHistory = async (req, res) => {
-  try {
-    const asset = await Asset.findById(req.params.id)
-      .populate("history.user", "name email");
-
-    if (!asset) {
-      return res.status(404).json({ message: "Asset not found" });
-    }
-
-    res.json({
-      asset: asset.name,
-      history: asset.history,
+    // ✅ WRITE HISTORY
+    await AssetHistory.create({
+      asset: asset._id,
+      action: "unassigned",
+      performedBy: req.user._id,
+      assignedTo: previousUser,
+      notes: "Asset unassigned by admin",
     });
+
+    res.json({ message: "Asset unassigned successfully" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
