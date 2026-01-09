@@ -5,7 +5,8 @@ import {
   updateAsset,
   deleteAsset,
   assignAsset,
-  unassignAsset
+  unassignAsset,
+  getAssetHistory
 } from "../controllers/assetController.js";
 import protect from "../middleware/authMiddleware.js";
 import {isAdmin} from "../middleware/roleMiddleware.js";
@@ -18,6 +19,8 @@ router.put("/:id", protect, isAdmin, updateAsset);
 router.delete("/:id", protect, isAdmin, deleteAsset);
 router.put("/assign/:id", protect, isAdmin, assignAsset);
 router.put("/unassign/:id", protect, isAdmin, unassignAsset);
+router.get("/:id/history", protect, isAdmin, getAssetHistory);
+
 
 
 export default router;
