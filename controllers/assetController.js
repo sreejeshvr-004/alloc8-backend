@@ -5,8 +5,10 @@ import AssetHistory from "../models/assetHistoryModel.js";
 // GET /api/assets
 export const getAssets = async (req, res) => {
   try {
-    const assets = await Asset.find({ isDeleted: false })
-      .populate("assignedTo", "name email");
+    const assets = await Asset.find({ isDeleted: false }).populate(
+      "assignedTo",
+      "name email"
+    );
     res.json(assets);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -120,6 +122,85 @@ export const unassignAsset = async (req, res) => {
     });
 
     res.json({ message: "Asset unassigned successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+//@desc PUT asset under
+//@route PUT/api/assets/maintenance/:id
+export const startMaintenance = async (req, res) => {
+  try {
+    const { reason, notes } = req.body;
+
+    const asset = await Asset.findById(req.params.id);
+
+    if (!asset || asset.isDeleted) {
+      return res.status(404).json({
+        message: "Asset not Found",
+      });
+    }
+
+    if (asset.status == "maintenance") {
+      return res.status(400).json({
+        message: "Asset already under maintenance",
+      });
+    }
+
+    asset.status = "maintenance";
+    asset.assignedTo = null; // force unassign
+     asset.maintenance.push({
+      reason,
+      notes,
+      startDate: new Date(),
+      isActive: true,
+    });
+
+    await asset.save();
+
+    res.json({ message: "Asset sent for maintenance" });
+  } catch (error) {
+    res.status(500).json({
+      message:error.message
+    })
+  }
+};
+
+
+// @desc Complete maintenance
+// @route PUT /api/assets/maintenance/:id/complete
+export const completeMaintenance = async (req, res) => {
+  try {
+    const asset = await Asset.findById(req.params.id);
+
+    if (!asset || asset.isDeleted) {
+      return res.status(404).json({ message: "Asset not found" });
+    }
+
+    if (asset.status !== "maintenance") {
+      return res.status(400).json({ message: "Asset is not under maintenance" });
+    }
+     
+    //active maintenance
+     const activeMaintenance = asset.maintenance.find(
+      (m) => m.isActive === true
+    );
+
+    if (!activeMaintenance) {
+      return res.status(400).json({ message: "No active maintenance found" });
+    }
+
+    activeMaintenance.endDate = new Date();
+    activeMaintenance.isActive = false;
+
+
+    asset.status = "available";
+    // asset.maintenance.endDate = new Date();
+    // asset.maintenance.isActive = false;
+
+    await asset.save();
+
+    res.json({ message: "Maintenance completed" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

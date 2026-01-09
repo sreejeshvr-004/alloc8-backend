@@ -25,6 +25,16 @@ const assetSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    maintenance:[{
+      reason:String,
+      startDate: Date,
+      endDate: Date,
+      notes:String,
+      isActive:{
+        type:Boolean,
+        default:false
+      },
+    }],
     isDeleted: {
       type: Boolean,
       default: false,
