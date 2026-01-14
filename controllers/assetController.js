@@ -1,7 +1,6 @@
 import Asset from "../models/assetModel.js";
 import AssetHistory from "../models/assetHistoryModel.js";
 
-
 // GET /api/assets
 export const getAssets = async (req, res) => {
   try {
@@ -59,8 +58,7 @@ export const deleteAsset = async (req, res) => {
   }
 };
 
-// @desc    Assign asset to employee and show History
-// @route   PUT /api/assets/assign/:id
+// ASSIGN
 export const assignAsset = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -78,7 +76,6 @@ export const assignAsset = async (req, res) => {
     asset.status = "assigned";
     await asset.save();
 
-    // ✅ WRITE HISTORY (CORRECT PLACE)
     await AssetHistory.create({
       asset: asset._id,
       action: "assigned",
@@ -92,8 +89,8 @@ export const assignAsset = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-// @desc    Unassign asset and added History
-// @route   PUT /api/assets/unassign/:id
+
+// UNASSIGN
 export const unassignAsset = async (req, res) => {
   try {
     const asset = await Asset.findById(req.params.id);
@@ -112,7 +109,6 @@ export const unassignAsset = async (req, res) => {
     asset.status = "available";
     await asset.save();
 
-    // ✅ WRITE HISTORY
     await AssetHistory.create({
       asset: asset._id,
       action: "unassigned",
@@ -127,29 +123,30 @@ export const unassignAsset = async (req, res) => {
   }
 };
 
-//@desc PUT asset under
-//@route PUT/api/assets/maintenance/:id
+// START MAINTENANCE (FIXED)
 export const startMaintenance = async (req, res) => {
   try {
     const { reason, notes } = req.body;
-
     const asset = await Asset.findById(req.params.id);
 
     if (!asset || asset.isDeleted) {
-      return res.status(404).json({
-        message: "Asset not Found",
-      });
+      return res.status(404).json({ message: "Asset not found" });
     }
 
-    if (asset.status == "maintenance") {
+    const activeMaintenance = asset.maintenance.find(
+      (m) => m.isActive === true
+    );
+
+    if (activeMaintenance) {
       return res.status(400).json({
-        message: "Asset already under maintenance",
+        message: "Active maintenance already exists",
       });
     }
 
+    asset.assignedTo = null;
     asset.status = "maintenance";
-    asset.assignedTo = null; // force unassign
-     asset.maintenance.push({
+
+    asset.maintenance.push({
       reason,
       notes,
       startDate: new Date(),
@@ -158,17 +155,20 @@ export const startMaintenance = async (req, res) => {
 
     await asset.save();
 
+    await AssetHistory.create({
+      asset: asset._id,
+      action: "maintenance_started",
+      performedBy: req.user._id,
+      notes: reason || "Maintenance started",
+    });
+
     res.json({ message: "Asset sent for maintenance" });
   } catch (error) {
-    res.status(500).json({
-      message:error.message
-    })
+    res.status(500).json({ message: error.message });
   }
 };
 
-
-// @desc Complete maintenance
-// @route PUT /api/assets/maintenance/:id/complete
+// COMPLETE MAINTENANCE (FIXED)
 export const completeMaintenance = async (req, res) => {
   try {
     const asset = await Asset.findById(req.params.id);
@@ -177,28 +177,28 @@ export const completeMaintenance = async (req, res) => {
       return res.status(404).json({ message: "Asset not found" });
     }
 
-    if (asset.status !== "maintenance") {
-      return res.status(400).json({ message: "Asset is not under maintenance" });
-    }
-     
-    //active maintenance
-     const activeMaintenance = asset.maintenance.find(
+    const activeMaintenance = asset.maintenance.find(
       (m) => m.isActive === true
     );
 
     if (!activeMaintenance) {
-      return res.status(400).json({ message: "No active maintenance found" });
+      return res.status(400).json({
+        message: "No active maintenance found",
+      });
     }
 
     activeMaintenance.endDate = new Date();
     activeMaintenance.isActive = false;
 
-
     asset.status = "available";
-    // asset.maintenance.endDate = new Date();
-    // asset.maintenance.isActive = false;
-
     await asset.save();
+
+    await AssetHistory.create({
+      asset: asset._id,
+      action: "maintenance_completed",
+      performedBy: req.user._id,
+      notes: "Maintenance completed",
+    });
 
     res.json({ message: "Maintenance completed" });
   } catch (error) {

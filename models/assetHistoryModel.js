@@ -8,17 +8,16 @@ const assetHistorySchema = new mongoose.Schema(
       required: true,
     },
     action: {
-      type: String,
-      enum: [
-        "created",
-        "assigned",
-        "unassigned",
-        "maintenance_start",
-        "maintenance_complete",
-        "replaced",
-      ],
-      required: true,
-    },
+  type: String,
+  enum: [
+    "created",
+    "assigned",
+    "unassigned",
+    "maintenance_started",
+    "maintenance_completed",
+  ],
+  required: true,
+},
     performedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

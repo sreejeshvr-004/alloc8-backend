@@ -4,7 +4,7 @@ import generateToken from "../utils/generateToken.js";
 // @desc    Register user
 // @route   POST /api/auth/register
 export const registerUser = async (req, res) => {
-  const { name, email, password, role, department } = req.body;
+  const { name, email, password, department } = req.body;
 
   const userExists = await User.findOne({ email });
   if (userExists) {
@@ -15,7 +15,7 @@ export const registerUser = async (req, res) => {
     name,
     email,
     password,
-    role,
+    role: "employee",
     department,
   });
 
