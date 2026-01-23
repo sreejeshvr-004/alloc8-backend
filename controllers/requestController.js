@@ -1,5 +1,6 @@
 import Request from "../models/requestModel.js";
 import Asset from "../models/assetModel.js";
+import { logAudit } from "../utils/auditLogger.js";
 
 // @desc Employee creates request
 // @route POST /api/requests
@@ -52,36 +53,93 @@ export const getAllRequests = async (req, res) => {
 // @route PUT /api/requests/:id
 export const updateRequestStatus = async (req, res) => {
   try {
-    const { status, assetId } = req.body; // status: approved/rejected
-    const request = await Request.findById(req.params.id);
+    const { status, assetId, rejectionReason } = req.body;
 
+    const request = await Request.findById(req.params.id).populate("user");
     if (!request) {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    if (request.status !== "pending") {
-      return res.status(400).json({ message: "Request already processed" });
-    }
-
-    // If approved, assign asset
-    if (status === "approved") {
-      const asset = await Asset.findById(assetId);
-
-      if (!asset || asset.status !== "available") {
-        return res.status(400).json({ message: "Asset not available" });
-      }
-
-      asset.status = "assigned";
-      asset.assignedTo = request.user;
-      await asset.save();
-
-      request.assignedAsset = asset._id;
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
     }
 
     request.status = status;
-    await request.save();
 
-    res.json({ message: `Request ${status}` });
+    // 🔴 REJECTED FLOW
+    if (status === "rejected") {
+      request.rejectionReason = rejectionReason || "Not approved by admin";
+
+      await request.save();
+
+      await logAudit({
+        entityType: "REQUEST",
+        entityId: request._id,
+        action: "REQUEST_REJECTED",
+        performedBy: req.user._id,
+        details: {
+          employeeName: request.user.name,
+          assetCategory: request.assetCategory,
+          reason: request.rejectionReason,
+        },
+      });
+
+      return res.json({ message: "Request rejected" });
+    }
+
+    // 🟢 APPROVED FLOW (existing logic)
+    // 🟢 APPROVED FLOW
+    if (status === "approved") {
+      if (!assetId) {
+        return res
+          .status(400)
+          .json({ message: "Asset ID required for approval" });
+      }
+
+      const asset = await Asset.findById(assetId);
+      if (!asset) {
+        return res.status(404).json({ message: "Asset not found" });
+      }
+
+      // 1️⃣ Category match
+      if (asset.category !== request.assetCategory) {
+        return res.status(400).json({
+          message: "Asset category does not match request",
+        });
+      }
+
+      // 2️⃣ Availability check
+      if (asset.status !== "available") {
+        return res.status(400).json({
+          message: "Asset is not available",
+        });
+      }
+
+      // Assign asset
+      asset.status = "assigned";
+      asset.assignedTo = request.user._id;
+      await asset.save();
+
+      // Update request
+      request.status = "approved";
+      request.assignedAsset = asset._id;
+      await request.save();
+
+      await logAudit({
+        entityType: "REQUEST",
+        entityId: request._id,
+        action: "REQUEST_APPROVED",
+        performedBy: req.user._id,
+        details: {
+          employeeName: request.user.name,
+          assetCategory: request.assetCategory,
+          assetName: asset.name,
+          assetSerial: asset.serialNumber,
+        },
+      });
+
+      return res.json({ message: "Request approved" });
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

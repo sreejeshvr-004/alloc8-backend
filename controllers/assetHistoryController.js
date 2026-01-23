@@ -11,7 +11,7 @@ export const getAssetHistory = async (req, res) => {
 
     // 1️⃣ Validate asset exists
     const asset = await Asset.findById(assetId);
-    if (!asset || asset.isDeleted) {
+    if (!asset) {
       return res.status(404).json({ message: "Asset not found" });
     }
 

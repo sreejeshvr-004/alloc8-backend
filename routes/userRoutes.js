@@ -7,11 +7,20 @@ import {
   deleteUser,
   restoreUser,
   searchUsers,
+  getEmployeeAssetHistory
 } from "../controllers/userController.js";
+
 import protect from "../middleware/authMiddleware.js";
 import { isAdmin } from "../middleware/roleMiddleware.js";
 
+import { exportUserAssetsPDF } from "../controllers/userExportController.js";
+import { generateUserFullReportPDF } from "../controllers/userReportController.js";
+import { exportAllEmployeesPDF } from "../controllers/userListExportController.js";
+import { getMyAssets } from "../controllers/userController.js";
+
 const router = express.Router();
+
+router.get("/me/assets", protect, getMyAssets);//employee route
 
 // Admin only
 router.get("/", protect, isAdmin, getUsers);
@@ -21,5 +30,16 @@ router.post("/", protect, isAdmin, createUser);
 router.put("/:id", protect, isAdmin, updateUser);
 router.delete("/:id", protect, isAdmin, deleteUser);
 router.put("/:id/restore", protect, isAdmin, restoreUser);
+
+router.get("/:id/asset-history",protect,isAdmin,getEmployeeAssetHistory);
+
+
+// router.get("/:id/assets/pdf", protect, isAdmin, exportUserAssetsPDF);
+
+router.get("/:id/full-report/pdf",protect,isAdmin,generateUserFullReportPDF)
+
+router.get("/export/all/pdf", protect, isAdmin, exportAllEmployeesPDF);
+
+
 
 export default router;

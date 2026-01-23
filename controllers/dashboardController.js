@@ -41,6 +41,36 @@ export const getDashboardStats = async (req, res) => {
       status: "rejected",
     });
 
+    // TOTAL ASSET PURCHASE VALUE
+    const totalAssetValueAgg = await Asset.aggregate([
+      { $match: { isDeleted: false } },
+      {
+        $group: {
+          _id: null,
+          totalValue: { $sum: "$assetCost" },
+        },
+      },
+    ]);
+
+    const totalAssetValue =
+      totalAssetValueAgg.length > 0 ? totalAssetValueAgg[0].totalValue : 0;
+
+    // TOTAL MAINTENANCE EXPENSE
+    const totalMaintenanceExpenseAgg = await Asset.aggregate([
+      { $match: { isDeleted: false } },
+      {
+        $group: {
+          _id: null,
+          totalExpense: { $sum: "$totalMaintenanceCost" },
+        },
+      },
+    ]);
+
+    const totalMaintenanceExpense =
+      totalMaintenanceExpenseAgg.length > 0
+        ? totalMaintenanceExpenseAgg[0].totalExpense
+        : 0;
+
     res.json({
       totalAssets,
       assignedAssets,
@@ -51,6 +81,8 @@ export const getDashboardStats = async (req, res) => {
       pendingRequests,
       approvedRequests,
       rejectedRequests,
+      totalAssetValue,
+      totalMaintenanceExpense,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
