@@ -8,20 +8,22 @@ const assetHistorySchema = new mongoose.Schema(
       required: true,
     },
     action: {
-  type: String,
-  enum: [
-  "created",
-  "assigned",
-  "unassigned",
-  "issue_reported",
-  "maintenance_started",
-  "maintenance_completed",
-  "deactivated",
-
-]
-,
-  required: true,
-},
+      type: String,
+      enum: [
+        "created",
+        "assigned",
+        "unassigned",
+        "issue_reported",
+        "maintenance_started",
+        "maintenance_completed",
+        "deactivated",
+      ],
+      required: true,
+    },
+    initiatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
     performedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -30,11 +32,12 @@ const assetHistorySchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+
     notes: {
       type: String,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const AssetHistory = mongoose.model("AssetHistory", assetHistorySchema);
