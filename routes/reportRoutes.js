@@ -1,7 +1,7 @@
 import express from "express";
 import protect from "../middleware/authMiddleware.js";
 import { isAdmin } from "../middleware/roleMiddleware.js";
-import {
+import {getReportsOverview,
   getFullAssetRegisterReport,exportFullAssetRegisterPDF,exportFullAssetRegisterExcel,
   getAssetsByCategoryReport,exportAssetsByCategoryPDF,exportAssetsByCategoryExcel,
   getAssetsByStatusReport,exportAssetsByStatusPDF,exportAssetsByStatusExcel,
@@ -15,6 +15,10 @@ import {
 } from "../reports/controllers/reportController.js";
 
 const router = express.Router();
+
+
+router.get("/overview", protect, isAdmin, getReportsOverview);
+
 
 router.get("/assets/full", protect, isAdmin, getFullAssetRegisterReport);
 router.get("/assets/full/pdf", protect, isAdmin, exportFullAssetRegisterPDF);
