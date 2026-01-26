@@ -12,6 +12,18 @@ import { getAssignmentHistoryReport } from "../services/assignmentReports.servic
 import { getTransferReports } from "../services/assignmentReports.service.js";
 import { getEmployeeAssetListReport } from "../services/userReports.service.js";
 
+import { getReportOverview } from "../services/reportOverview.services.js";
+
+export const getReportsOverview = async (req, res) => {
+  try {
+    const stats = await getReportOverview();
+    res.json(stats);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to load report overview" });
+  }
+};
+
 
 export const getFullAssetRegisterReport = async (req, res) => {
   try {

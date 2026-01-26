@@ -260,7 +260,7 @@ export const startMaintenance = async (req, res) => {
 // COMPLETE MAINTENANCE
 export const completeMaintenance = async (req, res) => {
   try {
-    const { cost } = req.body;
+    const { cost, vendor, notes } = req.body;
 
     const asset = await findActiveAssetById(req.params.id);
     if (!asset) {
@@ -275,6 +275,8 @@ export const completeMaintenance = async (req, res) => {
     }
 
     activeMaintenance.cost = isNaN(Number(cost)) ? 0 : Number(cost);
+    activeMaintenance.vendor = vendor || "";
+    activeMaintenance.notes = notes || activeMaintenance.notes;
     activeMaintenance.endDate = new Date();
     activeMaintenance.isActive = false;
 
