@@ -2,6 +2,7 @@ import express from "express";
 import protect from "../middleware/authMiddleware.js";
 import { isAdmin } from "../middleware/roleMiddleware.js";
 import {getReportsOverview,
+  exportGenericTablePDF,exportGenericTableExcel,
   getFullAssetRegisterReport,exportFullAssetRegisterPDF,exportFullAssetRegisterExcel,
   getAssetsByCategoryReport,exportAssetsByCategoryPDF,exportAssetsByCategoryExcel,
   getAssetsByStatusReport,exportAssetsByStatusPDF,exportAssetsByStatusExcel,
@@ -12,6 +13,10 @@ import {getReportsOverview,
   getAssignmentHistory,exportAssignmentHistoryPDF,exportAssignmentHistoryExcel,
   getTransferReportsController,exportTransferReportsPDF,exportTransferReportsExcel,
   getEmployeeAssetList,exportEmployeeAssetListPDF,exportEmployeeAssetListExcel,
+  getPurchaseCostReportPreview,exportPurchaseCostPDF,exportPurchaseCostExcel,
+  getAuditFindingsPreview,exportAuditFindingsPDF,exportAuditFindingsExcel,
+  getWriteOffSummaryPreview,exportWriteOffSummaryPDF,exportWriteOffSummaryExcel,
+  getMaintenanceExpensePreview,exportMaintenanceExpensePDF,exportMaintenanceExpenseExcel,
 } from "../reports/controllers/reportController.js";
 
 const router = express.Router();
@@ -60,6 +65,26 @@ router.get("/assignment/transfers/excel",protect,isAdmin,exportTransferReportsEx
 router.get("/assignment/employee-assets",protect,isAdmin,getEmployeeAssetList);
 router.get("/assignment/employee-assets/pdf",protect,isAdmin,exportEmployeeAssetListPDF);
 router.get("/assignment/employee-assets/excel",protect,isAdmin,exportEmployeeAssetListExcel);
+
+// FINANCIAL & AUDIT
+router.get("/financial/purchase-cost", protect, isAdmin, getPurchaseCostReportPreview);
+router.get("/financial/purchase-cost/pdf", protect, isAdmin, exportPurchaseCostPDF);
+router.get("/financial/purchase-cost/excel", protect, isAdmin, exportPurchaseCostExcel);
+
+router.get("/financial/audit-findings", protect, isAdmin, getAuditFindingsPreview);
+router.get("/financial/audit-findings/pdf", protect, isAdmin, exportAuditFindingsPDF);
+router.get("/financial/audit-findings/excel", protect, isAdmin, exportAuditFindingsExcel);
+
+router.get("/financial/write-off", protect, isAdmin, getWriteOffSummaryPreview);
+router.get("/financial/write-off/pdf", protect, isAdmin, exportWriteOffSummaryPDF);
+router.get("/financial/write-off/excel", protect, isAdmin, exportWriteOffSummaryExcel);
+
+router.get("/financial/maintenance-expense",protect,isAdmin,getMaintenanceExpensePreview);
+router.get("/financial/maintenance-expense/pdf",protect,isAdmin,exportMaintenanceExpensePDF);
+router.get("/financial/maintenance-expense/excel",protect,isAdmin,exportMaintenanceExpenseExcel)
+
+router.post("/export/pdf",protect,isAdmin,exportGenericTablePDF);
+router.post("/export/excel",protect,isAdmin,exportGenericTableExcel);
 
 
 export default router;

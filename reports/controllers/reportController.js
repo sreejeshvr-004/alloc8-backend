@@ -14,6 +14,10 @@ import { getEmployeeAssetListReport } from "../services/userReports.service.js";
 
 import { getReportOverview } from "../services/reportOverview.services.js";
 
+import { getPurchaseCostReport, getAuditFindingsReport, getWriteOffSummaryReport,getMaintenanceExpenseReport} from "../services/financialReports.service.js";
+
+
+
 export const getReportsOverview = async (req, res) => {
   try {
     const stats = await getReportOverview();
@@ -391,5 +395,130 @@ export const exportEmployeeAssetListExcel = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+
+// Purchase Cost
+export const getPurchaseCostReportPreview = async (req, res) => {
+  res.json(await getPurchaseCostReport());
+};
+export const exportPurchaseCostPDF = async (req, res) => {
+  const { columns, rows } = await getPurchaseCostReport();
+  exportTableToPDF(res, "Purchase Cost Report", columns, rows, {
+    generatedBy: req.user.email,
+  });
+};
+export const exportPurchaseCostExcel = async (req, res) => {
+  const { columns, rows } = await getPurchaseCostReport();
+  await exportTableToExcel(res, "Purchase Cost Report", columns, rows, {
+    generatedBy: req.user.email,
+  });
+};
+
+// Audit Findings
+export const getAuditFindingsPreview = async (req, res) => {
+  res.json(await getAuditFindingsReport());
+};
+export const exportAuditFindingsPDF = async (req, res) => {
+  const { columns, rows } = await getAuditFindingsReport();
+  exportTableToPDF(res, "Audit Findings", columns, rows, {
+    generatedBy: req.user.email,
+  });
+};
+export const exportAuditFindingsExcel = async (req, res) => {
+  const { columns, rows } = await getAuditFindingsReport();
+  await exportTableToExcel(res, "Audit Findings", columns, rows, {
+    generatedBy: req.user.email,
+  });
+};
+
+// Write-off Summary
+export const getWriteOffSummaryPreview = async (req, res) => {
+  res.json(await getWriteOffSummaryReport());
+};
+export const exportWriteOffSummaryPDF = async (req, res) => {
+  const { columns, rows } = await getWriteOffSummaryReport();
+  exportTableToPDF(res, "Write-off Summary", columns, rows, {
+    generatedBy: req.user.email,
+  });
+};
+export const exportWriteOffSummaryExcel = async (req, res) => {
+  const { columns, rows } = await getWriteOffSummaryReport();
+  await exportTableToExcel(res, "Write-off Summary", columns, rows, {
+    generatedBy: req.user.email,
+  });
+};
+export const getMaintenanceExpensePreview = async (req, res) => {
+  try {
+    const data = await getMaintenanceExpenseReport();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+export const exportMaintenanceExpensePDF = async (req, res) => {
+  const { columns, rows } = await getMaintenanceExpenseReport();
+
+  exportTableToPDF(
+    res,
+    "Maintenance Expense",
+    columns,
+    rows,
+    { generatedBy: req.user.email }
+  );
+};
+export const exportMaintenanceExpenseExcel = async (req, res) => {
+  const { columns, rows } = await getMaintenanceExpenseReport();
+
+  await exportTableToExcel(
+    res,
+    "Maintenance Expense",
+    columns,
+    rows,
+    { generatedBy: req.user.email }
+  );
+};
+
+
+
+export const exportGenericTablePDF = async (req, res) => {
+  try {
+    const { title, columns, rows } = req.body;
+
+    if (!columns || !rows) {
+      return res.status(400).json({ message: "Invalid export data" });
+    }
+
+    exportTableToPDF(
+      res,
+      title || "Report",
+      columns,
+      rows,
+      { generatedBy: req.user.email }
+    );
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to export PDF" });
+  }
+};
+export const exportGenericTableExcel = async (req, res) => {
+  try {
+    const { title, columns, rows } = req.body;
+
+    if (!columns || !rows) {
+      return res.status(400).json({ message: "Invalid export data" });
+    }
+
+    await exportTableToExcel(
+      res,
+      title || "Report",
+      columns,
+      rows,
+      { generatedBy: req.user.email }
+    );
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to export Excel" });
   }
 };
