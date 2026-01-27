@@ -16,12 +16,16 @@ const maintenanceSchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const assetSchema = new mongoose.Schema(
   {
     // BASIC INFO
+    images: {
+      type: [String], //image URL/path
+      default: [],
+    },
     name: { type: String, required: true },
     category: { type: String, required: true },
 
@@ -43,7 +47,13 @@ const assetSchema = new mongoose.Schema(
     // STATUS
     status: {
       type: String,
-      enum: ["available", "assigned", "issue_reported","maintenance", "replaced","inactive"],
+      enum: [
+        "available",
+        "assigned",
+        "issue_reported",
+        "maintenance",
+        "inactive",
+      ],
       default: "available",
     },
 
@@ -71,19 +81,18 @@ const assetSchema = new mongoose.Schema(
       default: false,
     },
     issue: {
-  type: {
-    type: String,
+      type: {
+        type: String,
+      },
+      description: String,
+      reportedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      reportedAt: Date,
+    },
   },
-  description: String,
-  reportedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-  },
-  reportedAt: Date,
-},
-
-  },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // AUTO SERIAL NUMBER GENERATION

@@ -15,6 +15,8 @@ import departmentRoutes from "./routes/departmentRoutes.js"
 
 import reportRoutes from "./routes/reportRoutes.js"
 
+import path from "path";
+
 dotenv.config();
 connectDB();
 
@@ -23,6 +25,9 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+const __dirname = path.resolve();
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 
 app.use("/api/auth", authRoutes);

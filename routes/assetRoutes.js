@@ -8,6 +8,8 @@ import {
   unassignAsset,
   startMaintenance,
   completeMaintenance,
+  addAssetImages,
+  deleteAssetImage,
 } from "../controllers/assetController.js";
 import protect from "../middleware/authMiddleware.js";
 import { isAdmin } from "../middleware/roleMiddleware.js";
@@ -16,12 +18,17 @@ import { exportAssetHistoryPDF } from "../controllers/assetExportController.js";
 import { exportAssetFullReportPDF } from "../controllers/assetFullReportController.js";
 import { exportAllAssetsPDF } from "../controllers/assetListExportController.js";
 import { exportMaintenanceRecordsPDF } from "../controllers/maintenanceExportController.js";
+import { uploadAssetImages } from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
 // ================= BASE =================
 router.get("/", protect, isAdmin, getAssets);
-router.post("/", protect, isAdmin, createAsset);
+router.post("/", protect, isAdmin, uploadAssetImages, createAsset);
+
+// ================= IMAGES =================
+router.put("/:id/images",protect,isAdmin,uploadAssetImages,addAssetImages);
+router.delete("/:id/images",protect,isAdmin,deleteAssetImage);
 
 // ================= ASSIGN / UNASSIGN =================
 router.put("/assign/:id", protect, isAdmin, assignAsset);
@@ -50,7 +57,7 @@ router.get("/:id/history/pdf", protect, isAdmin, exportAssetHistoryPDF);
 router.get("/:id/full-report/pdf", protect, isAdmin, exportAssetFullReportPDF);
 
 // ================= GENERIC (ALWAYS LAST) =================
-router.put("/:id", protect, isAdmin, updateAsset);
+router.put("/:id", protect, isAdmin,updateAsset);
 router.delete("/:id", protect, isAdmin, deleteAsset);
 
 export default router;

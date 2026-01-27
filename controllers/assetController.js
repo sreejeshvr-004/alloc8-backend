@@ -34,7 +34,22 @@ export const getAssets = async (req, res) => {
 // POST /api/assets
 export const createAsset = async (req, res) => {
   try {
-    const asset = await Asset.create(req.body);
+    const { name, category } = req.body;
+
+    if (!name || !category) {
+      return res.status(400).json({
+        message: "Asset name and category are required",
+      });
+    }
+
+    const imagePaths = req.files
+      ? req.files.map((file) => `/uploads/assets/${file.filename}`)
+      : [];
+
+    const asset = await Asset.create({
+      ...req.body,
+      images: imagePaths,
+    });
 
     await logAudit({
       entityType: "ASSET",
@@ -67,8 +82,15 @@ export const updateAsset = async (req, res) => {
     if (!asset) {
       return res.status(404).json({ message: "Asset not found" });
     }
-
+    
     Object.assign(asset, req.body);
+    if (req.files && req.files.length > 0) {
+     const uploadedImages = req.files.map(
+       (file) => `/uploads/assets/${file.filename}`
+     );
+
+     asset.images = [...(asset.images || []), ...uploadedImages];
+   }
     await asset.save();
 
     res.json({ message: "Asset updated successfully" });
@@ -269,9 +291,7 @@ export const completeMaintenance = async (req, res) => {
 
     const activeMaintenance = asset.maintenance.find((m) => m.isActive);
     if (!activeMaintenance) {
-      return res
-        .status(400)
-        .json({ message: "No active maintenance found" });
+      return res.status(400).json({ message: "No active maintenance found" });
     }
 
     activeMaintenance.cost = isNaN(Number(cost)) ? 0 : Number(cost);
@@ -282,9 +302,7 @@ export const completeMaintenance = async (req, res) => {
 
     const start = new Date(activeMaintenance.startDate);
     const end = new Date(activeMaintenance.endDate);
-    const durationDays = Math.ceil(
-      (end - start) / (1000 * 60 * 60 * 24)
-    );
+    const durationDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
 
     asset.maintenanceCount += 1;
     asset.totalMaintenanceCost += activeMaintenance.cost;
@@ -313,6 +331,48 @@ export const completeMaintenance = async (req, res) => {
     });
 
     res.json({ message: "Maintenance completed" });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+
+// ADD IMAGES TO ASSET
+// PUT /api/assets/:id/images
+export const addAssetImages = async (req, res) => {
+  try {
+    const asset = await Asset.findById(req.params.id);
+    if (!asset || asset.isDeleted) {
+      return res.status(404).json({ message: "Asset not found" });
+    }
+
+    const newImages = req.files
+      ? req.files.map((file) => `/uploads/assets/${file.filename}`)
+      : [];
+
+    asset.images.push(...newImages);
+    await asset.save();
+
+    res.json({ message: "Images added successfully", images: asset.images });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+// DELETE ASSET IMAGE
+// DELETE /api/assets/:id/images
+export const deleteAssetImage = async (req, res) => {
+  try {
+    const { imagePath } = req.body;
+
+    const asset = await Asset.findById(req.params.id);
+    if (!asset || asset.isDeleted) {
+      return res.status(404).json({ message: "Asset not found" });
+    }
+
+    asset.images = asset.images.filter((img) => img !== imagePath);
+    await asset.save();
+
+    res.json({ message: "Image removed successfully", images: asset.images });
   } catch (error) {
     handleError(res, error);
   }
