@@ -187,9 +187,12 @@ export const unassignAsset = async (req, res) => {
       return res.status(404).json({ message: "Asset not found" });
     }
 
-    if (asset.status !== "assigned") {
-      return res.status(400).json({ message: "Asset is not assigned" });
-    }
+   if (!["assigned", "return_requested"].includes(asset.status)) {
+  return res.status(400).json({
+    message: "Asset cannot be unassigned in its current state",
+  });
+}
+
 
     const previousUser = asset.assignedTo;
 

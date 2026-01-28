@@ -185,17 +185,86 @@ export const searchUsers = async (req, res) => {
   }
 };
 
-// @desc    Get logged-in employee assigned assets
+// @desc    Get logged-in employee current + previous assets
 // @route   GET /api/users/me/assets
 // @access  Employee
 export const getMyAssets = async (req, res) => {
   try {
-    const assets = await Asset.find({
-      assignedTo: req.user._id,
+    const userId = req.user._id;
+
+    // 1️⃣ CURRENTLY ASSIGNED ASSETS
+    const currentAssets = await Asset.find({
+      assignedTo: userId,
       isDeleted: false,
     }).select("name category serialNumber status maintenance");
 
-    res.json(assets);
+    // 2️⃣ FETCH ASSIGNMENT HISTORY
+    const histories = await AssetHistory.find({
+      assignedTo: userId,
+      action: { $in: ["assigned", "unassigned"] },
+    })
+      .populate("asset", "name category serialNumber")
+      .sort({ createdAt: 1 });
+
+    // 3️⃣ BUILD TIMELINE
+    const previousAssets = [];
+    const openAssignments = {}; // assetId -> assigned date
+
+    for (const h of histories) {
+      const assetId = h.asset?._id?.toString();
+      if (!assetId) continue;
+
+      if (h.action === "assigned") {
+        openAssignments[assetId] = {
+          asset: h.asset,
+          from: h.createdAt,
+        };
+      }
+
+      if (h.action === "unassigned" && openAssignments[assetId]) {
+        const fromDate = openAssignments[assetId].from;
+        const toDate = h.createdAt;
+
+        // Find last meaningful action for this asset
+        const lastAction = await AssetHistory.findOne({
+          asset: assetId,
+          assignedTo: userId,
+        })
+          .sort({ createdAt: -1 })
+          .lean();
+
+        let finalStatus = "returned";
+
+        if (lastAction?.action === "issue_reported") {
+          finalStatus = "issue";
+        } else if (
+          lastAction?.action === "maintenance_started" ||
+          lastAction?.action === "maintenance_completed"
+        ) {
+          finalStatus = "maintenance";
+        }
+
+        previousAssets.push({
+          assetId,
+          name: h.asset.name,
+          category: h.asset.category,
+          serialNumber: h.asset.serialNumber,
+          assignedAt: fromDate,
+          unassignedAt: toDate,
+          durationDays: Math.ceil(
+            (new Date(toDate) - new Date(fromDate)) / (1000 * 60 * 60 * 24),
+          ),
+          finalStatus, // ✅ BACKEND DECIDES
+        });
+
+        delete openAssignments[assetId];
+      }
+    }
+
+    res.json({
+      currentAssets,
+      previousAssets,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -270,3 +339,59 @@ export const getEmployeeAssetHistory = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Get logged-in employee asset history
+// @route   GET /api/users/me/asset-history
+// @access  Employee
+export const getMyAssetHistory = async (req, res) => {
+  try {
+    const employeeId = req.user._id;
+
+    const histories = await AssetHistory.find({
+      assignedTo: employeeId,
+      action: { $in: ["assigned", "unassigned"] },
+    })
+      .populate("asset", "name category serialNumber images")
+      .sort({ createdAt: 1 });
+
+    const timeline = [];
+    const open = {};
+
+    for (const h of histories) {
+      const assetId = h.asset._id.toString();
+
+      if (h.action === "assigned") {
+        open[assetId] = {
+          asset: h.asset,
+          from: h.createdAt,
+        };
+      }
+
+      if (h.action === "unassigned" && open[assetId]) {
+        const from = open[assetId].from;
+        const to = h.createdAt;
+
+        timeline.push({
+          assetId,
+          name: h.asset.name,
+          category: h.asset.category,
+          serialNumber: h.asset.serialNumber,
+          image: h.asset.images?.[0],
+          from,
+          to,
+          durationDays: Math.ceil(
+            (new Date(to) - new Date(from)) / (1000 * 60 * 60 * 24)
+          ),
+          finalStatus: "returned",
+        });
+
+        delete open[assetId];
+      }
+    }
+
+    res.json(timeline);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+

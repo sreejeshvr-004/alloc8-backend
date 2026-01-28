@@ -51,6 +51,7 @@ const assetSchema = new mongoose.Schema(
         "available",
         "assigned",
         "issue_reported",
+        "return_requested",
         "maintenance",
         "inactive",
       ],

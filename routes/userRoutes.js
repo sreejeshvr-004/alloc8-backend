@@ -7,7 +7,7 @@ import {
   deleteUser,
   restoreUser,
   searchUsers,
-  getEmployeeAssetHistory
+  getEmployeeAssetHistory,getMyAssetHistory
 } from "../controllers/userController.js";
 
 import protect from "../middleware/authMiddleware.js";
@@ -21,6 +21,7 @@ import { getMyAssets } from "../controllers/userController.js";
 const router = express.Router();
 
 router.get("/me/assets", protect, getMyAssets);//employee route
+router.get("/me/asset-history", protect, getMyAssetHistory);
 
 // Admin only
 router.get("/", protect, isAdmin, getUsers);
