@@ -192,13 +192,13 @@ export const getMyAssets = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    // 1️⃣ CURRENTLY ASSIGNED ASSETS
+    // 1️⃣ CURRENT ASSETS
     const currentAssets = await Asset.find({
       assignedTo: userId,
       isDeleted: false,
-    }).select("name category serialNumber status maintenance");
+    }).select("name category serialNumber status maintenance images");
 
-    // 2️⃣ FETCH ASSIGNMENT HISTORY
+    // 2️⃣ HISTORY (assignment lifecycle)
     const histories = await AssetHistory.find({
       assignedTo: userId,
       action: { $in: ["assigned", "unassigned"] },
@@ -206,34 +206,35 @@ export const getMyAssets = async (req, res) => {
       .populate("asset", "name category serialNumber")
       .sort({ createdAt: 1 });
 
-    // 3️⃣ BUILD TIMELINE
     const previousAssets = [];
-    const openAssignments = {}; // assetId -> assigned date
+    const openAssignments = {};
 
     for (const h of histories) {
       const assetId = h.asset?._id?.toString();
       if (!assetId) continue;
 
+      // ASSIGNED
       if (h.action === "assigned") {
-        openAssignments[assetId] = {
-          asset: h.asset,
-          from: h.createdAt,
-        };
+        openAssignments[assetId] = h.createdAt;
       }
 
+      // UNASSIGNED
       if (h.action === "unassigned" && openAssignments[assetId]) {
-        const fromDate = openAssignments[assetId].from;
+        const fromDate = openAssignments[assetId];
         const toDate = h.createdAt;
 
-        // Find last meaningful action for this asset
+        // 🔑 ALWAYS fetch latest asset to get image
+        const assetDoc = await Asset.findById(assetId).select("images");
+
+        // FINAL STATUS
+        let finalStatus = "returned";
+
         const lastAction = await AssetHistory.findOne({
           asset: assetId,
           assignedTo: userId,
         })
           .sort({ createdAt: -1 })
           .lean();
-
-        let finalStatus = "returned";
 
         if (lastAction?.action === "issue_reported") {
           finalStatus = "issue";
@@ -245,16 +246,21 @@ export const getMyAssets = async (req, res) => {
         }
 
         previousAssets.push({
+          _id: h._id, // ✅ UNIQUE KEY
           assetId,
           name: h.asset.name,
           category: h.asset.category,
           serialNumber: h.asset.serialNumber,
+          image: assetDoc?.images?.[0] || null,
           assignedAt: fromDate,
           unassignedAt: toDate,
-          durationDays: Math.ceil(
-            (new Date(toDate) - new Date(fromDate)) / (1000 * 60 * 60 * 24),
+          durationDays: Math.max(
+            1,
+            Math.ceil(
+              (new Date(toDate) - new Date(fromDate)) / (1000 * 60 * 60 * 24),
+            ),
           ),
-          finalStatus, // ✅ BACKEND DECIDES
+          finalStatus,
         });
 
         delete openAssignments[assetId];
@@ -286,7 +292,10 @@ export const getEmployeeAssetHistory = async (req, res) => {
     // 2️⃣ Get assignment-related history only
     const histories = await AssetHistory.find({
       assignedTo: employeeId,
-      action: { $in: ["assigned", "unassigned"] },
+      action: { $in: ["assigned", "unassigned","issue_reported",
+      "maintenance_started",
+      "maintenance_completed",
+      "deactivated",] },
     })
       .populate("asset", "name serialNumber")
       .sort({ createdAt: 1 });
@@ -303,33 +312,66 @@ export const getEmployeeAssetHistory = async (req, res) => {
       }
 
       if (h.action === "unassigned" && openAssignments[assetId]) {
-        timeline.push({
-          assetId,
-          assetName: h.asset.name,
-          serial: h.asset.serialNumber,
-          from: openAssignments[assetId],
-          to: h.createdAt,
-        });
-        delete openAssignments[assetId];
-      }
+  const lastAction = await AssetHistory.findOne({
+    asset: assetId,
+    assignedTo: employeeId,
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  let status = "returned";
+
+  if (lastAction?.action === "issue_reported") {
+    status = "issue_reported";
+  } else if (lastAction?.action === "maintenance_started") {
+    status = "maintenance";
+  } else if (lastAction?.action === "deactivated") {
+    status = "deactivated";
+  }
+
+  timeline.push({
+    assetId,
+    assetName: h.asset.name,
+    serial: h.asset.serialNumber,
+    from: openAssignments[assetId],
+    to: h.createdAt,
+    status,
+  });
+
+  delete openAssignments[assetId];
+}
+
     }
 
-    // 4️⃣ Still assigned assets (no unassigned yet)
+    // 4️⃣ Still open assignments — verify against Asset state
     for (const assetId in openAssignments) {
-      const asset = histories.find(
-        (h) => h.asset._id.toString() === assetId,
-      )?.asset;
+  const asset = await Asset.findById(assetId).select(
+    "name serialNumber assignedTo isDeleted",
+  );
 
-      if (asset) {
-        timeline.push({
-          assetId,
-          assetName: asset.name,
-          serial: asset.serialNumber,
-          from: openAssignments[assetId],
-          to: null,
-        });
-      }
-    }
+  let status = "returned";
+  let to = new Date();
+
+  // 🔴 SOFT-DELETED ASSET
+  if (asset?.isDeleted) {
+    status = "deactivated";
+  }
+  // 🟢 STILL ASSIGNED TO EMPLOYEE
+  else if (asset?.assignedTo?.toString() === employeeId) {
+    status = "active";
+    to = null;
+  }
+
+  timeline.push({
+    assetId,
+    assetName: asset?.name || "Unknown",
+    serial: asset?.serialNumber || "-",
+    from: openAssignments[assetId],
+    to,
+    status,
+  });
+}
+
 
     res.json({
       employee,
@@ -380,7 +422,7 @@ export const getMyAssetHistory = async (req, res) => {
           from,
           to,
           durationDays: Math.ceil(
-            (new Date(to) - new Date(from)) / (1000 * 60 * 60 * 24)
+            (new Date(to) - new Date(from)) / (1000 * 60 * 60 * 24),
           ),
           finalStatus: "returned",
         });
@@ -394,4 +436,3 @@ export const getMyAssetHistory = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-

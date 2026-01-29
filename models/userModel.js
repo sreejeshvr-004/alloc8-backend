@@ -20,11 +20,10 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
-     salary: {
+    salary: {
       type: Number,
       default: 0,
     },
-
 
     joiningDate: {
       type: Date,
@@ -39,8 +38,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordExpire: {
+      type: Date,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // PASSWORD HASH

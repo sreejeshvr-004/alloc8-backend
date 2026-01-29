@@ -106,6 +106,7 @@ export const deleteAsset = async (req, res) => {
     if (!asset) {
       return res.status(404).json({ message: "Asset not found" });
     }
+    const previousUser = asset.assignedTo;
 
     asset.isDeleted = true;
     asset.status = "inactive";
@@ -115,6 +116,7 @@ export const deleteAsset = async (req, res) => {
     await AssetHistory.create({
       asset: asset._id,
       action: "deactivated",
+      assignedTo: previousUser,
       performedBy: req.user?._id,
       notes: "Asset deactivated by admin",
     });
@@ -259,6 +261,7 @@ export const startMaintenance = async (req, res) => {
     await AssetHistory.create({
       asset: asset._id,
       action: "maintenance_started",
+      assignedTo: asset.assignedTo,
       performedBy: req.user._id,
       notes: reason || "Maintenance started",
     });
@@ -380,3 +383,5 @@ export const deleteAssetImage = async (req, res) => {
     handleError(res, error);
   }
 };
+
+
