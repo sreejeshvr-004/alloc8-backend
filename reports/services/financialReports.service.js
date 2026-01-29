@@ -20,7 +20,7 @@ export const getPurchaseCostReport = async () => {
     asset.purchaseDate
       ? asset.purchaseDate.toISOString().split("T")[0]
       : "-",
-    asset.purchaseCost ?? asset.purchasePrice ?? "-",
+    asset.assetCost ?? "-",
     asset.isDeleted ? "written-off / Inactive" : asset.status,
   ]);
 

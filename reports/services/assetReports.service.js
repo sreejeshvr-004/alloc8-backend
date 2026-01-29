@@ -28,7 +28,7 @@ export const getFullAssetRegister = async () => {
 };
 
 export const getAssetsByCategory = async () => {
-  const assets = await Asset.find({ isDeleted: false });
+  const assets = await Asset.find({});
 
   const categoryMap = {};
 
@@ -79,25 +79,59 @@ export const getAssetsByCategory = async () => {
 };
 
 export const getAssetsByStatus = async () => {
-  const assets = await Asset.find({ isDeleted: false });
+  const assets = await Asset.find({}); // include deleted
 
+  const STATUS_LIST = [
+    "available",
+    "assigned",
+    "maintenance",
+    "issue_reported",
+    "inactive",
+  ];
+
+  // initialize map safely
   const statusMap = {};
-
-  assets.forEach((asset) => {
-    const status = asset.status || "unknown";
-
-    if (!statusMap[status]) {
-      statusMap[status] = 0;
-    }
-
-    statusMap[status] += 1;
+  STATUS_LIST.forEach((s) => {
+    statusMap[s] = { total: 0, categories: {} };
   });
 
-  const columns = ["Status", "Total Assets"];
+  for (const asset of assets) {
+    // derive status safely
+    let status = "available";
 
-  const rows = Object.entries(statusMap).map(
-    ([status, count]) => [status, count]
-  );
+    if (asset?.isDeleted === true) {
+      status = "inactive";
+    } else if (typeof asset?.status === "string") {
+      status = asset.status;
+    }
+
+    // skip unknown statuses safely
+    if (!statusMap[status]) continue;
+
+    const category =
+      typeof asset?.category === "string" && asset.category.trim()
+        ? asset.category
+        : "Uncategorized";
+
+    statusMap[status].total += 1;
+    statusMap[status].categories[category] =
+      (statusMap[status].categories[category] || 0) + 1;
+  }
+
+  const columns = ["Status", "Total Assets", "Category"];
+
+  const rows = STATUS_LIST.map((status) => {
+    const data = statusMap[status];
+
+    const categoryText =
+      Object.keys(data.categories).length === 0
+        ? "-"
+        : Object.entries(data.categories)
+            .map(([cat, count]) => `${cat} (${count})`)
+            .join(", ");
+
+    return [status, data.total, categoryText];
+  });
 
   return { columns, rows };
 };
@@ -106,27 +140,49 @@ export const getAssetsByLocation = async () => {
   const assets = await Asset.find({ isDeleted: false })
     .populate("assignedTo", "department");
 
-  const locationMap = {};
+  /**
+   * Structure:
+   * {
+   *   IT: { Laptop: 2, Monitor: 1 },
+   *   HR: { Laptop: 1 }
+   * }
+   */
+  const locationCategoryMap = {};
 
   assets.forEach((asset) => {
-    const location =
-      asset.assignedTo?.department || "Unassigned";
+    if (!asset.assignedTo?.department) return;
 
-    if (!locationMap[location]) {
-      locationMap[location] = 0;
+    const location = asset.assignedTo.department;
+    const category = asset.category || "Unknown";
+
+    if (!locationCategoryMap[location]) {
+      locationCategoryMap[location] = {};
     }
 
-    locationMap[location] += 1;
+    if (!locationCategoryMap[location][category]) {
+      locationCategoryMap[location][category] = 0;
+    }
+
+    locationCategoryMap[location][category] += 1;
   });
 
-  const columns = ["Location", "Total Assets"];
+  const columns = ["Location", "Category", "Total Assets"];
 
-  const rows = Object.entries(locationMap).map(
-    ([location, count]) => [location, count]
+  const rows = [];
+
+  Object.entries(locationCategoryMap).forEach(
+    ([location, categories]) => {
+      Object.entries(categories).forEach(
+        ([category, count]) => {
+          rows.push([location, category, count]);
+        }
+      );
+    }
   );
 
   return { columns, rows };
 };
+
 
 export const getExpiringWarrantyReport = async (days = 30) => {
   const today = new Date();
