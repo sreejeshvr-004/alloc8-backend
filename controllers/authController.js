@@ -1,6 +1,7 @@
 import User from "../models/userModel.js";
 import generateToken from "../utils/generateToken.js";
 import crypto from "crypto";
+import sendEmail from "../utils/sendEmail.js";
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -78,32 +79,46 @@ export const forgotPassword = async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
-  // MOCK MAIL (console)
-  const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+  //   // MOCK MAIL (console)
+  //   const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
 
-  console.log("📧 MOCK PASSWORD RESET MAIL");
-  console.log(`To: ${user.email}`);
-  console.log(`Reset URL: ${resetUrl}`);
-  console.log("Expires in 15 minutes");
+  //   console.log("📧 MOCK PASSWORD RESET MAIL");
+  //   console.log(`To: ${user.email}`);
+  //   console.log(`Reset URL: ${resetUrl}`);
+  //   console.log("Expires in 15 minutes");
 
-  res.json({ message: "Password reset link sent (mock)" });
+  //   res.json({ message: "Password reset link sent (mock)" });
+  // };
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+  await sendEmail({
+    to: user.email,
+    subject: "Reset your ALLOC8 password",
+    html: `
+    <h3>Password Reset Request</h3>
+    <p>You requested a password reset.</p>
+    <p>Click the link below to reset your password:</p>
+    <a href="${resetUrl}" target="_blank">${resetUrl}</a>
+    <p>This link expires in 15 minutes.</p>
+  `,
+  });
+
+  res.json({ message: "Password reset link sent to your email" });
 };
-
 // @desc    Reset password
 // @route   POST /api/auth/reset-password/:token
 export const resetPassword = async (req, res) => {
   const { password } = req.body;
 
   const passwordRegex =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
-if (!passwordRegex.test(password)) {
-  return res.status(400).json({
-    message:
-      "Password must be at least 8 characters and include uppercase, lowercase, number, and special character",
-  });
-}
-
+  if (!passwordRegex.test(password)) {
+    return res.status(400).json({
+      message:
+        "Password must be at least 8 characters and include uppercase, lowercase, number, and special character",
+    });
+  }
 
   const hashedToken = crypto
     .createHash("sha256")
